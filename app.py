@@ -74,7 +74,7 @@ def forecast():
     monthly = monthly.head(3)  # Next 3 months only
     monthly['predicted_average'] = monthly['total_predicted'] / monthly['days']
     monthly_forecast = monthly[['month', 'predicted_average']]
-    monthly_forecast['month'] = monthly_forecast['month'].astype(str)
+    monthly_forecast['month'] = monthly_forecast['month'].dt.strftime('%B %Y')
 
     # === Return results as JSON ===
     return jsonify({
