@@ -62,7 +62,7 @@ def forecast():
     avg_daily = daily_forecast['predicted'].mean()
     monthly_forecast = pd.DataFrame({
         'month': pd.date_range(start=pd.to_datetime(daily_forecast['timestamp'].iloc[-1]) + timedelta(days=1), periods=3, freq='MS').strftime('%Y-%m'),
-        'predicted_average': [avg_daily * 30] * 3
+        'predicted_average': [avg_daily] * 3   # <-- Just use avg_daily
     })
 
     # Return results as JSON
