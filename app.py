@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS  # <-- Add this import
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -6,6 +7,7 @@ import requests
 from datetime import timedelta
 
 app = Flask(__name__)
+CORS(app)  # <-- Add this line to enable CORS for all routes
 
 @app.route('/forecast', methods=['GET'])
 def forecast():
