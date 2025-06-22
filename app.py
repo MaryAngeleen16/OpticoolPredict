@@ -5,6 +5,7 @@ import numpy as np
 import xgboost as xgb
 import requests
 from datetime import timedelta
+from sklearn.model_selection import train_test_split
 
 app = Flask(__name__)
 CORS(app)  # <-- Add this line to enable CORS for all routes
