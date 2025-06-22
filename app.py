@@ -42,9 +42,9 @@ def forecast():
     model = xgb.XGBRegressor(n_estimators=100, max_depth=5, learning_rate=0.1)
     model.fit(X_train, y_train)
 
-    # === Predict for Next 3 Days ===
+    # === Predict for Next 3 Months (Hourly) ===
     last_timestamp = df_hourly.index[-1]
-    future_hours = pd.date_range(start=last_timestamp + timedelta(hours=1), periods=24*3, freq='H')
+    future_hours = pd.date_range(start=last_timestamp + timedelta(hours=1), periods=24*31*3, freq='H')
     future_df = pd.DataFrame({'timestamp': future_hours})
     future_df['hour'] = future_df['timestamp'].dt.hour
     future_df['dayofweek'] = future_df['timestamp'].dt.dayofweek
@@ -54,20 +54,31 @@ def forecast():
     future_df['rolling3'] = latest_val
     future_df['predicted'] = model.predict(future_df[features])
 
-    # === Resample Daily ===
-    daily_forecast = future_df.set_index('timestamp').resample('D').mean().reset_index()
-    daily_forecast['timestamp'] = daily_forecast['timestamp'].dt.strftime('%Y-%m-%d')
+    # === Resample Daily, Exclude Sundays ===
+    future_df['date'] = future_df['timestamp'].dt.date
+    future_df['weekday'] = future_df['timestamp'].dt.weekday
+    daily_pred = future_df.groupby(['date', 'weekday'])['predicted'].mean().reset_index()
+    daily_pred = daily_pred[daily_pred['weekday'] != 6]  # Exclude Sundays (weekday==6)
 
-    # === Predict 3-Month Average ===
-    avg_daily = daily_forecast['predicted'].mean()
-    monthly_forecast = pd.DataFrame({
-        'month': pd.date_range(start=pd.to_datetime(daily_forecast['timestamp'].iloc[-1]) + timedelta(days=1), periods=3, freq='MS').strftime('%Y-%m'),
-        'predicted_average': [avg_daily] * 3   # <-- Just use avg_daily
-    })
+    # === Daily Forecast: Next 3 Days (Exclude Sundays) ===
+    next_days = daily_pred[daily_pred['date'] > last_timestamp.date()].head(3)
+    daily_forecast = next_days[['date', 'predicted']]
+    daily_forecast = daily_forecast.rename(columns={'date': 'timestamp'})
 
-    # Return results as JSON
+    # === Monthly Forecast: Next 3 Months (Exclude Sundays) ===
+    daily_pred['month'] = pd.to_datetime(daily_pred['date']).dt.to_period('M')
+    monthly = daily_pred.groupby('month').agg(
+        total_predicted=('predicted', 'sum'),
+        days=('predicted', 'count')
+    ).reset_index()
+    monthly = monthly.head(3)  # Next 3 months only
+    monthly['predicted_average'] = monthly['total_predicted'] / monthly['days']
+    monthly_forecast = monthly[['month', 'predicted_average']]
+    monthly_forecast['month'] = monthly_forecast['month'].astype(str)
+
+    # === Return results as JSON ===
     return jsonify({
-        "daily_forecast": daily_forecast[['timestamp', 'predicted']].to_dict(orient='records'),
+        "daily_forecast": daily_forecast.to_dict(orient='records'),
         "monthly_forecast": monthly_forecast.to_dict(orient='records')
     })
 
